@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import {
-    generateCaptcha, 
+    generateCaptcha,
     storeCaptcha,
     validateCaptcha,
     handleLogin,
@@ -16,7 +16,8 @@ import {
     addFollowerUserService,
     deleteFollowerUserService,
     getUsersListService,
-    updateUserCredentialByAdminService
+    updateUserCredentialByAdminService,
+    editFollowerAssignmentsService
 } from '../service/User.service';
 
 
@@ -199,64 +200,105 @@ export const listFollowerUserController = async (req: Request, res: Response) =>
     }
 };
 
+// 工具：检测 permissionId 前缀
+function validatePermissionIds(assignments: { permissionIds: number[] }[]) {
+    for (const a of assignments) {
+        for (const pid of a.permissionIds) {
+            const firstChar = pid.toString()[0];
+            if (firstChar !== '6' && firstChar !== '7') {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 //add follower
 export const addFollowerUserController = async (req: Request, res: Response) => {
     try {
-        const { email, addedEmail, addedAccountName } = req.body;
-        const newUser = await addFollowerUserService(email, addedEmail, addedAccountName);
+        const { email, followerEmail, followerAccountName, assignments } = req.body;
 
-        // 如果 `newUser` 创建成功，返回 200；否则返回 500
-        if (newUser) {
-            res.status(200).json({ message: `New follower user ${newUser.email} has been created` });
-        } else {
-            res.status(500).json({ error: 'Failed to create new follower' });
+        if (!Array.isArray(assignments)) {
+            return res.status(400).json({ error: 'Invalid input, expected an array of assignments.' });
         }
 
-    } catch (error) {
-        console.error('Error in addFollowerUserController:', error);
-
-        if (error instanceof Error) {
-            switch (error.message) {
-                case 'Insufficient Parameter':
-                    return res.status(404).json({ error: 'Insufficient Parameter' });
-                case 'Validation error':
-                    return res.status(404).json({ error: 'Validation error' });
-                case 'Not a master user':
-                    return res.status(404).json({ error: 'Not a master user' });
-                default:
-                    return res.status(500).json({ error: 'Internal server error' });
-            }
+        // 新增接口要校验 permissionIds
+        if (!validatePermissionIds(assignments)) {
+            return res.status(400).json({ error: 'Invalid permissionIds: only 6xx or 7xx allowed' });
         }
-        return res.status(500).json({ error: 'Unknown error' });
+
+        const result = await addFollowerUserService(
+            email, followerEmail, followerAccountName, assignments
+        );
+        return res.status(200).json(result);
+
+    } catch (err) {
+        const msg = (err as Error).message;
+
+        if (msg.startsWith('No permission to assign')) {
+            return res.status(403).json({ error: msg });
+        }
+
+        if (['Insufficient Parameter', 'User not found', 'Not a master user'].includes(msg)) {
+            return res.status(400).json({ error: msg });
+        }
+        console.error(err);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+export const editFollowerUserController = async (req: Request, res: Response) => {
+    try {
+        const { email, followerEmail, assignments } = req.body;
+
+        if (!Array.isArray(assignments)) {
+            return res.status(400).json({ error: 'Invalid input, expected an array of assignments.' });
+        }
+
+        // 编辑接口同样校验 permissionIds
+        if (!validatePermissionIds(assignments)) {
+            return res.status(400).json({ error: 'Invalid permissionIds: only 6xx or 7xx allowed' });
+        }
+
+        const result = await editFollowerAssignmentsService(
+            email, followerEmail, assignments
+        );
+        return res.status(200).json(result);
+
+    } catch (err) {
+        const msg = (err as Error).message;
+
+        if (msg.startsWith('No permission to assign')) {
+            return res.status(403).json({ error: msg });
+        }
+
+        if (
+            ['Insufficient Parameter', 'User not found', 'Follower user not found',
+                'Not a master user', 'No permission to edit']
+                .includes(msg)
+        ) {
+            return res.status(400).json({ error: msg });
+        }
+        console.error(err);
+        return res.status(500).json({ error: 'Internal server error' });
     }
 };
 
 //delete follower
 export const deleteFollowerUserController = async (req: Request, res: Response) => {
-    const { email, deletedEmail } = req.body;
-
     try {
-        const pendingDeleteUser = await deleteFollowerUserService(email, deletedEmail);
-
-        res.status(200).json({
-            message: `User ${pendingDeleteUser.email} has been removed from system`,
+        const { email, followerEmail } = req.body;
+        const follower = await deleteFollowerUserService(email, followerEmail);
+        return res.status(200).json({
+            message: `User ${follower.email} has been removed from system`
         });
-    } catch (error) {
-        console.error('Error in deleteFollowerUser:', error);
-
-        if (error instanceof Error) {
-            switch (error.message) {
-                case 'Insufficient Parameter':
-                    return res.status(404).json({ error: 'Insufficient Parameter' });
-                case 'Validation error':
-                    return res.status(404).json({ error: 'Validation error' });
-                case 'No permission to delete':
-                    return res.status(404).json({ error: 'No permission to delete' });
-                default:
-                    return res.status(500).json({ error: 'Internal server error' });
-            }
+    } catch (err) {
+        const msg = (err as Error).message;
+        if (['Insufficient Parameter', 'Validation error', 'No permission to delete'].includes(msg)) {
+            return res.status(400).json({ error: msg });
         }
-        return res.status(500).json({ error: 'Unknown error' });
+        console.error(err);
+        return res.status(500).json({ error: 'Internal server error' });
     }
 };
 

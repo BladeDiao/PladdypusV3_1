@@ -661,7 +661,7 @@ INSERT INTO public.permission (id, name, description, "createdAt", "updatedAt") 
   (700, 'venue_all', 'Venue – All permissions', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
   (720, 'venue_read', 'Venue – Read', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
   (730, 'venue_update', 'Venue – Update', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-  (790, 'venuevenue_analytics', 'Venue – Analytics', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+  (790, 'venue_analytics', 'Venue – Analytics', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 
   (600, 'adv_all', 'Adv – All permissions', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
   (620, 'adv_read', 'Adv – Read', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
