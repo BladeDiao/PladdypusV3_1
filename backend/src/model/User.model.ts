@@ -55,7 +55,7 @@ export default class User extends Model<User> {
     allowNull: true,
     comment: 'actually user_id, uses for following primary user'
   })
-  managedBy!: string;
+  managedBy!: string | null;
 
   @HasMany(() => UserAssignment)
   userAssignment!: UserAssignment;

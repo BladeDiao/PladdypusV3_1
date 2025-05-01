@@ -1,7 +1,7 @@
 
 import express from 'express';
-// import { authenticateJWT, checkAdminPermissionLevel } from '../middleware/JWT.middleware';
-// import { advLevelCacheClear, articleLevelCacheClear } from '../middleware/ClearCache.middleware';
+import { authenticateJWT, checkAdminPermissionLevel } from '../middleware/JWT.middleware';
+import { advLevelCacheClear, articleLevelCacheClear } from '../middleware/ClearCache.middleware';
 // import {
 //     getAllAreaOptionsController,
 //     getAssociatedArticlesController,
@@ -16,21 +16,21 @@ import express from 'express';
 //     updateAssociatedVenuesController,
 // } from '../controller/Area.controller';
 // import { rootAuthentication } from '../middleware/RootAuth.middleware';
-// import { getUsersListController, updateUserCredentialByAdminController} from '../controller/User.controller';
+import { getUsersListController, updateUserCredentialByAdminController} from '../controller/User.controller';
 // import { getUserInfoByIdForActivationController, createNewUserWithInfoController, sendNonexistentNewUserVenueActivationEmailController, sendVenueAddedEmailController, sendNonexistentNewUserAdvertisementEmailController, sendNewAdvertToExistedUserController, sendUserNewEmailByAdminController, sendResetPasswordByAdminController} from '../controller/Activation.controller';
 // import { getAdvIdsAndNamesController, createNewAdvWithSpotIdsController} from '../controller/Advertisement.controller';
 
 const router = express.Router();
 
-// // manage user account related
+// manage user account related
 
-// // get all users list
-// // OLD router.get('/getuserslist', authenticateJWT, getUsersList);
-// router.get('/user/list', authenticateJWT, checkAdminPermissionLevel, getUsersListController);
+// get all users list
+// OLD router.get('/getuserslist', authenticateJWT, getUsersList);
+router.get('/user/list', authenticateJWT, checkAdminPermissionLevel, getUsersListController);
 
-// // force to change user's credential
-// // OLD router.post('/updateusercredentialbyadmin', authenticateJWT, updateusercredentialbyadmin);
-// router.post('/user/credential/enforce/update', authenticateJWT, checkAdminPermissionLevel, updateUserCredentialByAdminController);
+// force to change user's credential
+// OLD router.post('/updateusercredentialbyadmin', authenticateJWT, updateusercredentialbyadmin);
+router.post('/user/credential/enforce/update', authenticateJWT, checkAdminPermissionLevel, updateUserCredentialByAdminController);
 
 
 // // ---------------------------------------------------------------------------------------------------------------------------------------------

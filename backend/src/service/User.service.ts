@@ -573,6 +573,7 @@ export const deleteFollowerUserService = async (
 export const getUsersListService = async (email: string) => {
   // 1. 查询数据库
   const users = await User.findAll({
+    where: { managedBy: null },
     attributes: ['id', 'accountName', 'permissionLevel', 'managedBy'],
   });
 
@@ -580,8 +581,8 @@ export const getUsersListService = async (email: string) => {
   const userList = users
     .filter(user => user.managedBy === null)
     .map(user => ({
-      UserId: user.id,
-      AccountName: user.accountName || '',
+      userId: user.id,
+      accountName: user.accountName || '',
       permissionLevel: user.permissionLevel || 0,
     }));
 
@@ -612,7 +613,7 @@ export const updateUserCredentialByAdminService = async (params: UpdateUserCrede
     return { message: 'User email has been updated' };
   } else if (updateKey === 'password') {
     // 重置密码
-    const defaultPassword = `${user.accountName}!${user.email}`;
+    const defaultPassword = `${user.accountName}${user.email}`;
     const hashedDefaultPassword = await bcrypt.hash(defaultPassword, 10);
     user.password = hashedDefaultPassword;
     await user.save();
