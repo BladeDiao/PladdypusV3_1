@@ -41,7 +41,7 @@ router.post('/user/follower/delete', authenticateJWT, deleteFollowerUserControll
 
 // get the content for a advertiser
 // OLD router.post('/content/advwhole', authenticateJWT, getWholeAdvContent);
-router.get('/advertisement/:adv_id/content/read', authenticateJWT, getWholeAdvContentController);
+router.post('/advertisement/:adv_id/content/read', authenticateJWT, getWholeAdvContentController);
 
 // change a advertiser banner or special time
 // OLD router.post('/changeproperty', authenticateJWT, advLevelCacheClear, changeAdvProperty);
@@ -55,7 +55,7 @@ router.post('/advertisement/:adv_id/property/update', authenticateJWT, advLevelC
 router.post('/venue/:venue_id/content/with-visibility/read', authenticateJWT, getWholeSpotContentController);
 
 // OLD router.post('/spotwholeleafcontentId', authenticateJWT, getWholeSpotContentValidLeafContent);
-router.post('/venue/:venue_id/content/all-leafs/read', authenticateJWT, getWholeSpotContentValidLeafContentController); //用来列出一个venue的所有content用来绑定link_ids的
+router.post('/venue/:venue_id/content/all-nodes/read', authenticateJWT, getWholeSpotContentValidLeafContentController); //用来列出一个venue的所有content用来绑定link_ids的
 
 // OLD router.post('/checkcontentnamebyIds', authenticateJWT, getContentNamesByIds);
 router.post('/venue/content-names/read', authenticateJWT, getContentNamesByIdsController); //通过content的ids获取content的名字

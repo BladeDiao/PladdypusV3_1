@@ -147,25 +147,28 @@ export const getWholeSpotContentService = async (email: string, venue_id: string
         throw new Error('Validation error');
     }
 
-    // 2. 验证 Spot 所属关系
-    const spot = await Venue.findOne({
-        where: { id: venue_id },
-        include: [{
-            model: UserAssignment,
-            where: {
-                user_id: user.id,
-                target_type: 'venue',
-                target_id: venue_id
-            },
-            attributes: []
-        }],
+    // 2. 验证 venue 所属关系
+    const assign = await UserAssignment.findOne({
+        where: {
+            user_id: user.id,
+            targetType: 'venue',
+            target_id: venue_id
+        }
     });
-    if (!spot) {
+    if (!assign) {
+        throw new Error('No permission to access this venue');
+    }
+
+    const venue = await Venue.findOne({
+        where: { id: venue_id },
+        attributes: { exclude: ['createdAt', 'updatedAt'] },
+    });
+    if (!venue) {
         throw new Error('Spot and User mismatch');
     }
 
     // 3. 查找 ContentEntry
-    const endpoint = await ContentEntry.findOne({ where: { owner_id: spot.id } });
+    const endpoint = await ContentEntry.findOne({ where: { owner_id: venue.id } });
     if (!endpoint || !endpoint.content_id) {
         throw new Error('Endpoint not found or no content associated');
     }
@@ -261,82 +264,83 @@ const filterContent = (content: any, filterVisible: boolean): any => {
     return rest;
 };
 
-// get whole content Leaf Ids for a venue
-export const getWholeSpotContentValidLeafContentService = async (email: string, venue_id: string): Promise<Record<string, string>> => {
-    // only return nodes that a spot can modify
+// get whole content node Ids for a venue
+export const getWholeSpotContentValidNodeContentService = async (
+    email: string,
+    venue_id: string
+): Promise<Record<string, string>> => {
+    // 1. 验证 email
     if (!email) {
         throw new Error('failed to get user email');
     }
-
-    const user: User | null = await User.findOne({ where: { email: email } });
+    // 2. 查用户
+    const user = await User.findOne({ where: { email } });
     if (!user) {
         throw new Error('Validation error');
     }
-
-    const spot: Venue | null = await Venue.findOne({
-        where: { id: venue_id }, include: [{
-            model: UserAssignment,
-            where: {
-                user_id: user.id,
-                target_type: 'venue',
-                target_id: venue_id
-            },
-            attributes: []
-        }],
+    // 3. 权限检查
+    const assign = await UserAssignment.findOne({
+        where: {
+            user_id: user.id,
+            targetType: 'venue',
+            target_id: venue_id
+        }
     });
-    if (!spot) {
+    if (!assign) {
+        throw new Error('No permission to access this venue');
+    }
+    // 4. 确认 venue 存在
+    const venue = await Venue.findByPk(venue_id, {
+        attributes: { exclude: ['createdAt', 'updatedAt'] }
+    });
+    if (!venue) {
         throw new Error('Spot and User mismatch');
     }
-
-    const endpoint: ContentEntry | null = await ContentEntry.findOne({ where: { owner_id: spot.id } });
-
+    // 5. 拿到内容根节点
+    const endpoint = await ContentEntry.findOne({
+        where: { owner_id: venue.id }
+    });
     if (!endpoint || !endpoint.content_id) {
         throw new Error('Endpoint not found or no content associated');
     }
-
-    const contentRoot = await Content.findOne({ where: { id: endpoint.content_id } }) as unknown as Content;
+    const contentRoot = await Content.findByPk(
+        endpoint.content_id
+    );
+    if (!contentRoot) {
+        throw new Error('Content root missing');
+    }
+    // 6. 拉一批 Content（按 attributes 列表）
     const contentRootList = await Content.findAll({
         where: {
-            id: {
-                [Op.in]: contentRoot.attributes
-            }
+            id: { [Op.in]: contentRoot.attributes || [] }
         }
-    }) as Content[];
-
-    const contentSpotStart: Content | undefined = contentRootList.find(content => content.searchTags === "HotelManagedEndpoint");
-    if (!contentSpotStart) {
+    });
+    // 7. 找到那棵“入口”子树
+    const entryNode = contentRootList.find(
+        c => c.searchTags === 'HotelManagedEndpoint'
+    );
+    if (!entryNode) {
         throw new Error('No Spot Managed Endpoint Found');
     }
-    const contentTreeList = await fetchContentTreeBFS([contentSpotStart.id], []);
-    const contentTree = filterContent(contentTreeList[0], false);
+    const treeArray = await fetchContentTreeBFS([entryNode.id], []);
+    const contentTree = filterContent(treeArray[0], false);
 
-    const leafContentIds = getLeafContentIds(contentTree);
-
-    // 返回叶子节点 id 列表
-    return leafContentIds;
-
-}
-
-export const getLeafContentIds = (contentTree: any): { [key: string]: string } => {
-    const leafIds: { [key: string]: string } = {};
-
-    // 递归遍历函数
-    const traverseContentTree = (node: any) => {
-        // 如果当前节点是叶子节点
-        if (node.isLeaf) {
-            leafIds[node.id] = node.name;
+    // 8. 遍历整棵子树，收集所有节点（不只是叶子）
+    const collectAllNodes = (
+        node: any,
+        map: Record<string, string>
+    ) => {
+        map[node.id] = node.name;
+        if (Array.isArray(node.attributes)) {
+            node.attributes.forEach((child: any) =>
+                collectAllNodes(child, map)
+            );
         }
-        // 如果当前节点有 attributes，继续递归遍历
-        if (node.attributes && node.attributes.length > 0 && !node.isLeaf) {
-            node.attributes.forEach((childNode: any) => {
-                traverseContentTree(childNode);
-            });
-        }
+        return map;
     };
+    const allNodeIds = collectAllNodes(contentTree, {});
 
-    traverseContentTree(contentTree);
-
-    return leafIds;
+    return allNodeIds;
 };
 
 //通过ids获取内容名称
@@ -380,17 +384,21 @@ export const changeSpotPropertyService = async (
         throw new Error('User not found');
     }
 
-    // 3. 查找对应的 `Spot`
+    // 3. 查找对应的 `venue`
+    const assign = await UserAssignment.findOne({
+        where: {
+            user_id: user.id,
+            targetType: 'venue',
+            target_id: venue_id
+        }
+    });
+    if (!assign) {
+        throw new Error('No permission to access this venue');
+    }
+
     const spot = await Venue.findOne({
-        where: { id: venue_id }, include: [{
-            model: UserAssignment,
-            where: {
-                user_id: user.id,
-                target_type: 'venue',
-                target_id: venue_id
-            },
-            attributes: []
-        }],
+        where: { id: venue_id },
+        attributes: { exclude: ['createdAt', 'updatedAt'] }
     });
     if (!spot) {
         throw new Error('Spot not found');

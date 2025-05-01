@@ -163,16 +163,21 @@ export const getWholeAdvContentService = async (
     }
 
     // 2. 验证 Adv（确认为该用户所有）
+    const assign = await UserAssignment.findOne({
+        where: {
+            user_id: user.id,
+            targetType: 'adv',
+            target_id: adv_id
+        }
+    });
+    if (!assign) {
+        throw new Error('No permission to access this adv');
+    }
+
+
     const adv = await Adv.findOne({
-        where: { id: adv_id }, include: [{
-            model: UserAssignment,
-            where: {
-                user_id: user.id,
-                target_type: 'adv',
-                target_id: adv_id
-            },
-            attributes: []
-        }],
+        where: { id: adv_id },
+        attributes:{exclude: ['createdAt', 'updatedAt']}
     });
     if (!adv) {
         throw new Error('Adv and User mismatch');
@@ -220,16 +225,19 @@ export const changeAdvPropertyService = async (params: ChangeAdvPropertyParams) 
     }
 
     // 2. 查找对应的广告
+    const assign = await UserAssignment.findOne({
+        where: {
+            user_id: user.id,
+            targetType: 'adv',
+            target_id: adv_id
+        }
+    });
+    if (!assign) {
+        throw new Error('No permission to access this adv');
+    }
+
     const adv = await Adv.findOne({
-        where: { id: adv_id }, include: [{
-            model: UserAssignment,
-            where: {
-                user_id: user.id,
-                target_type: 'adv',
-                target_id: adv_id
-            },
-            attributes: []
-        }]
+        where: { id: adv_id }, attributes:{exclude: ['createdAt', 'updatedAt']}
     });
     if (!adv) {
         throw new Error('Adv not found');
@@ -288,18 +296,9 @@ export const createNewAdvWithSpotIdsService = async (
     // 4. 检查是否重复
     const isDuplicatedAdv = await Adv.findOne({
         where: { name },
-        include: [{
-          model: UserAssignment,
-          required: true,
-          where: {
-            user_id: userId,
-            target_type: 'adv'
-          },
-          attributes: []
-        }],
         // 如果你只关心是否存在，可以只查 id
         attributes: ['id', 'name']
-      });
+    });
     if (isDuplicatedAdv) {
         throw new Error('This is a duplicated Adv');
     }

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { getVenueHomeData, getAllArticlesForVenue, getWholeSpotContentService, getWholeSpotContentValidLeafContentService, getContentNamesByIdsService, changeSpotPropertyService } from '../service/Venue.service';
+import { getVenueHomeData, getAllArticlesForVenue, getWholeSpotContentService, getContentNamesByIdsService, changeSpotPropertyService, getWholeSpotContentValidNodeContentService } from '../service/Venue.service';
 
 // get Venue Home Data
 export const getVenueHome = async (req: Request, res: Response): Promise<void> => {
@@ -70,7 +70,7 @@ export const getWholeSpotContentValidLeafContentController = async (req: Request
 
         const { email } = req.body;
 
-        const contentTree = await getWholeSpotContentValidLeafContentService(email, venue_id);
+        const contentTree = await getWholeSpotContentValidNodeContentService(email, venue_id);
         res.json(contentTree);
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -135,8 +135,6 @@ export const changeSpotPropertyController = async (req: Request, res: Response) 
 
         return res.status(200).json({ message: 'Spot property successfully changed' });
     } catch (error) {
-        console.log('!!!', error);
-
         if (error instanceof Error) {
             switch (error.message) {
                 case 'Insufficient Parameters':
